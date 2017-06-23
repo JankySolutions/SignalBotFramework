@@ -15,10 +15,10 @@ bot = Bot(signal_cli_binary, signal_number)
 
 @bot.handle('message')
 def message_responder(message):
-    logging.info("%s: %s", message['envelope'].get('source'), message['envelope']['dataMessage']['message'])
+    logging.info("%s: %s", message['envelope']['source'], message['envelope']['dataMessage']['message'])
     return {
         "type": "send",
-        "recipientNumber": message['envelope'].get('source'),
+        "recipientNumber": message['envelope']['source'],
         "messageBody": message['envelope']['dataMessage']['message'],
         "id": "1"
     }
