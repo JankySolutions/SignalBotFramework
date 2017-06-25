@@ -9,8 +9,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 signal_cli_binary = sys.argv[1]
 signal_number = sys.argv[2]
+dsn = sys.argv[3] if len(sys.argv) > 3 else None
 
-bot = Bot(signal_cli_binary, signal_number)
+bot = Bot(signal_cli_binary, signal_number, dsn)
 
 
 @bot.handle('message')

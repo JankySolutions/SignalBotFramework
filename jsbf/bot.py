@@ -1,6 +1,10 @@
 import subprocess
 import json
 import logging
+try:
+    import raven
+except ImportError:
+    raven = None
 
 logger = logging.getLogger(__name__)
 
@@ -9,9 +13,15 @@ class Bot(object):
 
     handlers = {}
 
-    def __init__(self, binary, number):
+    def __init__(self, binary, number, dsn=None):
         self.binary = binary
         self.number = number
+        self.sentry = None
+        if dsn is not None:
+            if raven is None:
+                logger.error("DSN specified but raven could not be imported! Errors will not be sent to sentry")
+            else:
+                self.sentry = raven.Client(dsn)
 
     def register_handler(self, msg_type, handler):
         if msg_type not in self.handlers:
@@ -37,6 +47,8 @@ class Bot(object):
                         responses.append(json.dumps(handler_response))
                 except:
                     logger.exception("An error occured while running %s handler %s", msg_type, handler.__name__)
+                    if self.sentry is not None:
+                        self.sentry.captureException()
         else:
             logger.debug("No handler for message type %s", msg_type)
         return responses
