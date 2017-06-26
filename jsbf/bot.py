@@ -1,6 +1,8 @@
 import subprocess
 import json
+import re
 import logging
+
 try:
     import raven
 except ImportError:
@@ -11,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Bot(object):
 
-    handlers = {}
+    handlers = []
 
     def __init__(self, binary, number, dsn=None):
         self.binary = binary
@@ -23,34 +25,39 @@ class Bot(object):
             else:
                 self.sentry = raven.Client(dsn)
 
-    def register_handler(self, msg_type, handler):
-        if msg_type not in self.handlers:
-            self.handlers[msg_type] = []
-        self.handlers[msg_type].append(handler)
+    def register_handler(self, handler, regex, group):
+        if not isinstance(regex, re._pattern_type):
+            regex = re.compile(regex)
+        self.handlers.append((handler, regex, group))
 
-    def handle(self, msg_type):
+    def handle(self, regex=None, group=None):
+        regex = '' if regex is None else regex
+
         def decorator(f):
-            self.register_handler(msg_type, f)
+            self.register_handler(f, regex=regex, group=group)
             return f
         return decorator
 
     def _handle_message(self, message):
-        msg_type = message.get('type')
-        logger.debug("Handling %s message", msg_type)
         responses = []
-        if msg_type in self.handlers:
-            for handler in self.handlers[msg_type]:
-                logger.debug("Running %s handler %s", handler.__name__, msg_type)
-                try:
-                    handler_response = handler(message)
-                    if handler_response is not None:
-                        responses.append(json.dumps(handler_response))
-                except:
-                    logger.exception("An error occured while running %s handler %s", msg_type, handler.__name__)
-                    if self.sentry is not None:
-                        self.sentry.captureException()
-        else:
-            logger.debug("No handler for message type %s", msg_type)
+        if message.get('type') == "message" and not message.get('envelope', {}).get('isReceipt', True):
+            logger.debug("Handling message %s", json.dumps(message, indent=4))
+            datamessage = message.get('envelope', {}).get('dataMessage', {})
+            text = datamessage.get('message')
+            group = datamessage.get('groupInfo')
+            for handler in self.handlers:
+                if (handler[2] is None or handler[2] == group is None):
+                    match = handler[1].match(text)
+                    if match is not None:
+                        logger.debug("Running handler %s", handler[0].__name__)
+                        try:
+                            handler_response = handler[0](message)
+                            if handler_response is not None:
+                                responses.append(json.dumps(handler_response))
+                        except:
+                            logger.exception("An error occured while running handler %s", handler[0].__name__)
+                            if self.sentry is not None:
+                                self.sentry.captureException()
         return responses
 
     def run(self):

@@ -15,16 +15,19 @@ Might put it in pypi eventually
 
 *See `examples/` folder for more complete examples, etc*
 
+
+A simple example that responds to messages starting with "hi" with the text "Hello!"
+
 ```python
 from jsbf import Bot
 bot = Bot('bin/signal-cli', '+12024561414')
 
-@bot.handle('message')
+@bot.handle('^hi')
 def message_responder(message):
     return {
         "type": "send",
         "recipientNumber": message['envelope']['source'],
-        "messageBody": message['envelope']['dataMessage']['message'],
+        "messageBody": "Hello!",
         "id": "1"
     }
 

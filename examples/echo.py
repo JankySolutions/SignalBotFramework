@@ -14,7 +14,7 @@ dsn = sys.argv[3] if len(sys.argv) > 3 else None
 bot = Bot(signal_cli_binary, signal_number, dsn)
 
 
-@bot.handle('message')
+@bot.handle()
 def message_responder(message):
     logging.info("%s: %s", message['envelope']['source'], message['envelope']['dataMessage']['message'])
     return {
