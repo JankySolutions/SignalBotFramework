@@ -11,7 +11,7 @@ signal_cli_binary = sys.argv[1]
 signal_number = sys.argv[2]
 dsn = sys.argv[3] if len(sys.argv) > 3 else None
 
-bot = Bot(signal_cli_binary, signal_number, dsn)
+bot = Bot(dsn)
 
 
 @bot.handle()
@@ -25,4 +25,4 @@ def message_responder(message):
     }
 
 
-bot.run()
+bot.run(signal_number, binary=signal_cli_binary)

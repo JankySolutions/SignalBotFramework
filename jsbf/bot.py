@@ -15,9 +15,7 @@ class Bot(object):
 
     handlers = []
 
-    def __init__(self, binary, number, dsn=None):
-        self.binary = binary
-        self.number = number
+    def __init__(self, dsn=None):
         self.sentry = None
         if dsn is not None:
             if raven is None:
@@ -41,7 +39,7 @@ class Bot(object):
     def _handle_message(self, message):
         responses = []
         if message.get('type') == "message" and not message.get('envelope', {}).get('isReceipt', True):
-            logger.debug("Handling message %s", json.dumps(message, indent=4))
+            logger.debug("Handling message")
             datamessage = message.get('envelope', {}).get('dataMessage', {})
             text = datamessage.get('message')
             group = datamessage.get('groupInfo')
@@ -60,13 +58,14 @@ class Bot(object):
                                 self.sentry.captureException()
         return responses
 
-    def run(self):
-        command = [self.binary, '-u', self.number, 'jsonevtloop']
+    def run(self, number, binary='signal-cli'):
+        command = [binary, '-u', number, 'jsonevtloop']
         with subprocess.Popen(command, stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
             logger.debug("Running %s...", command)
-            while True:
-                msg = proc.stdout.readline().decode()
+            for msg in proc.stdout:
+                msg = msg.decode().strip()
                 try:
+                    logger.debug("Read from signal-cli: %s", msg)
                     responses = self._handle_message(json.loads(msg))
                     for response in responses:
                         logger.debug("Writing to signal-cli stdin: %s", response)

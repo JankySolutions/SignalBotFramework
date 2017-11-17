@@ -20,7 +20,6 @@ A simple example that responds to messages starting with "hi" with the text "Hel
 
 ```python
 from jsbf import Bot
-bot = Bot('bin/signal-cli', '+12024561414')
 
 @bot.handle('^hi')
 def message_responder(message):
@@ -32,7 +31,7 @@ def message_responder(message):
     }
 
 
-bot.run()
+bot.run('+12024561414', 'bin/signal-cli')
 ```
 
 `Bot`'s constructor takes two arguments: the path to the signal-cli binary, and the number to use.
