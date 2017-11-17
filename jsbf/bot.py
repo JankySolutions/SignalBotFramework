@@ -38,13 +38,13 @@ class Bot(object):
 
     def _handle_message(self, message):
         responses = []
-        if message.get('type') == "message" and not message.get('envelope', {}).get('isReceipt', True):
+        if not message.get('envelope', {}).get('isReceipt', True):
             logger.debug("Handling message")
             datamessage = message.get('envelope', {}).get('dataMessage', {})
             text = datamessage.get('message')
             group = datamessage.get('groupInfo')
             for handler in self.handlers:
-                if (handler[2] is None or handler[2] == group is None):
+                if (handler[2] is None or (handler[2] is False and group is None) or handler[2] == group):
                     match = handler[1].match(text)
                     if match is not None:
                         logger.debug("Running handler %s", handler[0].__name__)
@@ -60,13 +60,21 @@ class Bot(object):
 
     def run(self, number, binary='signal-cli'):
         command = [binary, '-u', number, 'jsonevtloop']
+        hooks = {"message": self._handle_message}
         with subprocess.Popen(command, stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
             logger.debug("Running %s...", command)
             for msg in proc.stdout:
                 msg = msg.decode().strip()
                 try:
                     logger.debug("Read from signal-cli: %s", msg)
-                    responses = self._handle_message(json.loads(msg))
+                    msg = json.loads(msg)
+                    msg_type = msg.get('type')
+                    responses = []
+                    if msg_type in hooks:
+                        responses = hooks[msg_type](msg)
+                    else:
+                        logger.debug('Received message with unknown type %s',
+                                      msg_type)
                     for response in responses:
                         logger.debug("Writing to signal-cli stdin: %s", response)
                         proc.stdin.write(response.encode('utf-8'))
