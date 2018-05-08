@@ -1,7 +1,7 @@
-import subprocess
 import json
 import re
 import logging
+import socket
 
 try:
     import raven
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class Bot(object):
 
     handlers = []
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
     def __init__(self, dsn=None):
         self.sentry = None
@@ -38,9 +39,8 @@ class Bot(object):
 
     def _handle_message(self, message):
         responses = []
-        if not message.get('envelope', {}).get('isReceipt', True):
-            logger.debug("Handling message")
-            datamessage = message.get('envelope', {}).get('dataMessage', {})
+        if not message['data'].get('isReceipt', True):
+            datamessage = message.get('data', {}).get('dataMessage', {})
             text = datamessage.get('message')
             group = datamessage.get('groupInfo')
             for handler in self.handlers:
@@ -58,28 +58,27 @@ class Bot(object):
                                 self.sentry.captureException()
         return responses
 
-    def run(self, number, binary='signal-cli'):
-        command = [binary, '-u', number, 'jsonevtloop']
+    def run(self, socket='/var/run/signald/signald.sock'):
+        self.sock.connect(socket)
+        logger.info("Connected to signald control socket")
         hooks = {"message": self._handle_message}
-        with subprocess.Popen(command, stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
-            logger.debug("Running %s...", command)
-            for msg in proc.stdout:
-                msg = msg.decode().strip()
-                try:
-                    logger.debug("Read from signal-cli: %s", msg)
-                    msg = json.loads(msg)
-                    msg_type = msg.get('type')
-                    responses = []
-                    if msg_type in hooks:
-                        responses = hooks[msg_type](msg)
-                    else:
-                        logger.debug('Received message with unknown type %s',
-                                      msg_type)
-                    for response in responses:
-                        logger.debug("Writing to signal-cli stdin: %s", response)
-                        proc.stdin.write(response.encode('utf-8'))
-                        proc.stdin.write(b"\r\n")
-                        proc.stdin.flush()
-                        logger.debug("Sent!")
-                except json.JSONDecodeError:
-                    logger.debug("Not valid json:\n%s", msg)
+        while True:
+            rawmsg = b""
+            while not rawmsg.endswith(b'\n'):
+                rawmsg += self.sock.recv(1)
+            try:
+                logger.debug("Read from signald: %s", rawmsg.decode())
+                msg = json.loads(rawmsg.decode())
+                msg_type = msg.get('type')
+                responses = []
+                if msg_type in hooks:
+                    responses = hooks[msg_type](msg)
+                else:
+                    logger.debug('Received message with unknown type %s', msg_type)
+                for response in responses:
+                    logger.debug("Writing to signald: %s", response)
+                    self.sock.send(json.dumps(response))
+                    self.sock.send("\n")
+                    logger.debug("Sent!")
+            except json.JSONDecodeError:
+                logger.debug("Not valid json:\n%s", msg)
