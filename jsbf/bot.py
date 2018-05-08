@@ -39,8 +39,8 @@ class Bot(object):
 
     def _handle_message(self, message):
         responses = []
-        if not message['data'].get('isReceipt', True):
-            datamessage = message.get('data', {}).get('dataMessage', {})
+        if message['data']['dataMessage'] is not None:
+            datamessage = message['data']['dataMessage']
             text = datamessage.get('message')
             group = datamessage.get('groupInfo')
             for handler in self.handlers:
@@ -50,7 +50,9 @@ class Bot(object):
                         logger.debug("Running handler %s", handler[0].__name__)
                         try:
                             handler_response = handler[0](message)
-                            if handler_response is not None:
+                            if type(handler_response) == list:
+                                responses += handler_response
+                            elif handler_response is not None:
                                 responses.append(json.dumps(handler_response))
                         except:
                             logger.exception("An error occured while running handler %s", handler[0].__name__)
@@ -77,8 +79,8 @@ class Bot(object):
                     logger.debug('Received message with unknown type %s', msg_type)
                 for response in responses:
                     logger.debug("Writing to signald: %s", response)
-                    self.sock.send(json.dumps(response))
-                    self.sock.send("\n")
+                    self.sock.send(json.dumps(response).encode())
+                    self.sock.send(b"\n")
                     logger.debug("Sent!")
             except json.JSONDecodeError:
                 logger.debug("Not valid json:\n%s", msg)

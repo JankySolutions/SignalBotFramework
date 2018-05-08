@@ -1,6 +1,6 @@
 # Janky Signal Bot Framework
 
-A janky framework for building Signal bots. Requires [kbin76's fork of signal-cli](https://github.com/kbin76/signal-cli).
+A janky framework for building Signal bots. Requires [signald](http://github.com/thefinn93/signald).
 
 
 ## Install
@@ -25,17 +25,19 @@ from jsbf import Bot
 def message_responder(message):
     return {
         "type": "send",
-        "recipientNumber": message['envelope']['source'],
+        "recipientNumber": message['data']['source'],
         "messageBody": "Hello!",
         "id": "1"
     }
 
 
-bot.run('+12024561414', 'bin/signal-cli')
+bot.run()
 ```
 
-`Bot`'s constructor takes two arguments: the path to the signal-cli binary, and the number to use.
+`Bot`'s constructor takes one optional argument, a string to the path to the signald control socket.
+It defaults to `/var/run/signald/signald.sock`, the signald default.
 
 ## Stability
 
-none
+Highly unstable, please get in touch or file an issue if you're planning on using this. Right now
+I'm assuming no one uses it and may post breaking changes
