@@ -2,6 +2,7 @@ import json
 import re
 import logging
 import socket
+import time
 
 try:
     import raven
@@ -14,7 +15,6 @@ logger = logging.getLogger(__name__)
 class Bot(object):
 
     handlers = []
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
     def __init__(self, dsn=None):
         self.sentry = None
@@ -43,6 +43,8 @@ class Bot(object):
             datamessage = message['data']['dataMessage']
             text = datamessage.get('message')
             group = datamessage.get('groupInfo')
+            if group:
+                group = group.get('groupId')
             for handler in self.handlers:
                 if (handler[2] is None or (handler[2] is False and group is None) or handler[2] == group):
                     match = handler[1].match(text)
@@ -60,14 +62,30 @@ class Bot(object):
                                 self.sentry.captureException()
         return responses
 
-    def run(self, socket='/var/run/signald/signald.sock'):
-        self.sock.connect(socket)
-        logger.info("Connected to signald control socket")
+    def run(self, s='/var/run/signald/signald.sock'):
+        sleeptime = 1
+        while True:
+            try:
+                self.connect(s)
+                sleeptime = 1
+            except Exception as e:
+                logger.exception("aw shit it broke")
+                logger.warn("Connection lost! Reconnecting in %s seconds...." % sleeptime)
+                time.sleep(sleeptime)
+                sleeptime = sleeptime*2
+
+    def connect(self, s):
         hooks = {"message": self._handle_message}
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(s)
+        logger.info("Connected to signald control socket [%s]", s)
         while True:
             rawmsg = b""
             while not rawmsg.endswith(b'\n'):
-                rawmsg += self.sock.recv(1)
+                chunk = self.sock.recv(1)
+                if len(chunk) == 0:
+                    return None
+                rawmsg += chunk
             try:
                 logger.debug("Read from signald: %s", rawmsg.decode())
                 msg = json.loads(rawmsg.decode())
