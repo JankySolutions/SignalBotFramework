@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class Bot(object):
 
+    version = {}
     handlers = []
 
     def __init__(self, dsn=None):
@@ -62,6 +63,15 @@ class Bot(object):
                                 self.sentry.captureException()
         return responses
 
+    def _handle_accounts(self, data):
+        logger.info(data)
+        return [{"type": "subscribe", "username": a['username']} for a in data['data']['accounts']]
+
+    def _handle_version(self, data):
+        self.version = data['data']
+        logger.info("Connected to {name} version {version} (branch {branch} commit {commit})".format(**self.version))
+        return [{"type": "list_accounts"}]
+
     def run(self, s='/var/run/signald/signald.sock'):
         sleeptime = 1
         while True:
@@ -75,7 +85,11 @@ class Bot(object):
                 sleeptime = sleeptime*2
 
     def connect(self, s):
-        hooks = {"message": self._handle_message}
+        hooks = {
+            "message": self._handle_message,
+            "account_list": self._handle_accounts,
+            "version": self._handle_version
+        }
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.connect(s)
         logger.info("Connected to signald control socket [%s]", s)
