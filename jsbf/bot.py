@@ -82,7 +82,7 @@ class Bot(object):
                 logger.exception("aw shit it broke")
                 logger.warn("Connection lost! Reconnecting in %s seconds...." % sleeptime)
                 time.sleep(sleeptime)
-                sleeptime = sleeptime*2
+                sleeptime = sleeptime*2 if sleeptime < 32 else sleeptime
 
     def connect(self, s):
         hooks = {
