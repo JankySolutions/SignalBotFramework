@@ -40,8 +40,8 @@ class Bot(object):
 
     def _handle_message(self, message):
         responses = []
-        if message['data']['dataMessage'] is not None:
-            datamessage = message['data']['dataMessage']
+        datamessage = message.get('data', {}).get('dataMessage')
+        if datamessage is not None:
             text = datamessage.get('message')
             group = datamessage.get('groupInfo')
             if group:
