@@ -56,7 +56,7 @@ class Bot(object):
                             if type(handler_response) == list:
                                 responses += handler_response
                             elif handler_response is not None:
-                                responses.append(json.dumps(handler_response))
+                                responses.append(handler_response)
                         except:
                             logger.exception("An error occured while running handler %s", handler[0].__name__)
                             if self.sentry is not None:
