@@ -26,7 +26,11 @@ class Bot(object):
                 self.sentry = raven.Client(dsn)
 
     def register_handler(self, handler, regex, group):
-        if not isinstance(regex, re._pattern_type):
+        try:
+            pattern = re._pattern_type
+        except AttributeError: # Python 3.7 on
+            pattern = re.Pattern
+        if not isinstance(regex, pattern):
             regex = re.compile(regex)
         self.handlers.append((handler, regex, group))
 
