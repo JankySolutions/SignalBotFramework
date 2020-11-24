@@ -46,7 +46,7 @@ class Bot(object):
         responses = []
         datamessage = message.get('data', {}).get('dataMessage')
         if datamessage is not None:
-            text = datamessage.get('message')
+            text = datamessage.get('body')
             group = datamessage.get('groupInfo')
             if group:
                 group = group.get('groupId')
